@@ -1902,6 +1902,23 @@ body.anim-locked .split {
   gap: 16px;
 }
 
+.equity-run-warn {
+  display: block;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+}
+
+.equity-run-warn span {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: #fcd34d;
+}
+
 .equity-stats {
   display: grid;
   grid-template-columns: auto repeat(5, minmax(0, 1fr));

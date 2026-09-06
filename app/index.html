@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&family=Orbitron:wght@500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./static/style.css?v=85" />
+  <link rel="stylesheet" href="./static/style.css?v=86" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
@@ -542,6 +542,9 @@
         </div>
 
         <div class="equity-live" id="btEquityLive" hidden>
+          <div class="equity-run-warn" id="btEquityRunWarn" hidden>
+            ⚠ 资金曲线与绩效卡来自不同回测（曲线 <span id="btEquityRunWarnCur"></span> vs 绩效 <span id="btEquityRunWarnRep"></span>）— 两卡口径不一致，请刷新页面或重新回测
+          </div>
           <div class="equity-stats" id="btEquityStats"></div>
           <div class="equity-chart-block">
             <div class="equity-axis-label">累计对数收益</div>
@@ -1252,6 +1255,6 @@
   <script src="./static/api-base.js?v=3"></script>
   <script src="./static/bg.js?v=3"></script>
   <script src="./static/stream.js?v=4"></script>
-  <script src="./static/app.js?v=153"></script>
+  <script src="./static/app.js?v=155"></script>
 </body>
 </html>

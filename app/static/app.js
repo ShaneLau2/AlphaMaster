@@ -19,6 +19,7 @@ let btActive = false;
 let btBuster = "";      // 图表缓存刷新键（用 job 时间戳）
 let btPortfolioSig = ""; // 绩效卡签名：变化时才重建 + 播放数字动画，避免每次轮询重播
 let lastEquityData = null; // 最近一次资金曲线数据，供绩效卡 sparkline 复用
+let btReportRunId = null; // 最近一次回测报告 run_id，用于与资金曲线对齐口径
 let lastTrainingActive = false;
 let trainActive = false;   // 概览轮询后同步的后端训练活动标志（供自适应轮询用）
 let pollIntervalMs = 4000; // 当前轮询间隔：忙 4s / 空闲 12s
@@ -1100,8 +1101,6 @@ function renderStrategyFileCard(info) {
   selectedStrategySymbol = info.symbol || null;
   syncBtStrategySelect();
   syncBtDataToStrategy(info);
-  matrixPrefsApply(selectedStrategySymbol);
-  btPrefsApply(selectedStrategySymbol); // 按品种带出上次的持仓组合+窗口
   matrixSymBadgeUpdate();
   btLoadMatrixBest();
   btLoadCompare();
@@ -2978,7 +2977,13 @@ async function refreshBacktestReport() {
     return;
   }
   // 先取资金曲线（写入 lastEquityData），再渲染绩效卡，让 sparkline 用上真实数据
+  btReportRunId = data.report.run_id || null;
   await refreshEquityCurve();
+  if (btReportRunId && lastEquityData?.run_id && lastEquityData.run_id !== btReportRunId) {
+    // 抓到了不同 run 的文件（写盘间隙/并发回测）：等一拍重取一次，仍不一致由 renderEquity 展示警示
+    await new Promise((r) => setTimeout(r, 1500));
+    await refreshEquityCurve();
+  }
   renderPortfolio(data.report);
   renderBacktestTable(data.report.symbols || {});
 }
@@ -4509,6 +4514,7 @@ function renderEquity(resp) {
   const data = resp?.data;
   const symbols = data?.symbols || {};
   const symNames = Object.keys(symbols);
+  updateEquityRunWarn(data?.run_id || null);
 
   if (!resp?.available || !symNames.length) {
     if (live) live.hidden = true;
@@ -4544,6 +4550,19 @@ function renderEquity(resp) {
   if ($("btChartsHint")) {
     $("btChartsHint").textContent = `${mainName} · 交互式资金曲线 · 悬停查看数值`;
   }
+}
+
+// 资金曲线与绩效卡必须来自同一次回测（同一 run_id）；不一致时提示（旧文件或写盘间隙）
+function updateEquityRunWarn(runId) {
+  const el = $("btEquityRunWarn");
+  if (!el) return;
+  const mismatch = btReportRunId && runId && btReportRunId !== runId;
+  el.hidden = !mismatch;
+  if (!mismatch) return;
+  const cur = $("btEquityRunWarnCur");
+  const rep = $("btEquityRunWarnRep");
+  if (cur) cur.textContent = runId;
+  if (rep) rep.textContent = btReportRunId;
 }
 
 async function startBacktest() {
@@ -5484,49 +5503,6 @@ function renderBtLastCombo() {
   el.textContent = `最近一次组合（已记忆 · 重启保留）：${name} · ${winTxt}${tag}`;
 }
 
-// ═══ 按品种记忆：切到某品种时带出该品种上次的 持仓组合+样本外窗口 ═══
-async function btPrefsApply(symbol) {
-  if (!symbol) return;
-  __btApplyingPrefs = true;
-  try {
-    const d = await fetchJSON(
-      "/api/backtest/prefs?symbol=" + encodeURIComponent(symbol),
-      { silent: true, retries: 0 }
-    );
-    const p = d && d.prefs ? d.prefs : null;
-    if (!p) return;
-    const hp = p.hold_policy;
-    const wb = Number(p.window_bars);
-    const base = $("btPolicySelect");
-    const stk = $("btStackSelect");
-    if (hp && hp !== "signal" && base) {
-      const parts = String(hp).split("+").filter(Boolean);
-      if (
-        parts.length >= 2 &&
-        base.querySelector(`option[value="${parts[0]}"]`) &&
-        stk &&
-        stk.querySelector(`option[value="${parts[1]}"]`)
-      ) {
-        base.value = parts[0];
-        stk.value = parts[1];
-      } else if (base.querySelector(`option[value="${hp}"]`)) {
-        base.value = hp;
-        if (stk) stk.value = "";
-      }
-      updateBtComboHint();
-    }
-    // 样本外窗口只由输入框驱动（scheduleBtPrefsSave 随用户改动记忆），不再随
-    // 品种/模型切换自动回填输入框、也不把记忆窗口同步到其它页：用户清空
-    // （=全部历史）后任何切换/回测都不得把它改回去。持仓组合/上限/阈值仍恢复。
-    window.__btMemPolicy = hp && hp !== "signal" ? hp : "signal";
-    renderBtLastCombo();
-    applyBtPrefsToOthers(window.__btMemPolicy, null, window.__btMemMaxPos);
-  } catch (_) {
-  } finally {
-    __btApplyingPrefs = false;
-  }
-}
-
 // ═══ 矩阵最优组合 → 新回测默认持仓管理（同品种；标注最大回撤约束） ═══
 let __btMatrixBest = null;
 let __btMatrixBestInFlight = false;
@@ -5623,8 +5599,8 @@ async function btLoadMatrixBest() {
     `</div>`;
   const applyBtn = $("btMatrixBestApplyBtn");
   if (applyBtn) applyBtn.addEventListener("click", btApplyMatrixBest);
-  // 不再自动应用/自动恢复：只有打开网页时按记忆预填（btPrefsApply），绝不因
-  // 点「开始回测」或重启服务而把参数改回矩阵最优；「应用为新回测默认」按钮保持显式可用。
+  // 不再自动应用/自动恢复：只有打开网页时按记忆预填（restoreBtPrefs），绝不因
+  // 切模型/点「开始回测」/重启服务而把参数改回矩阵最优；「应用为新回测默认」按钮保持显式可用。
   __btMatrixUserApply = false;
 }
 
