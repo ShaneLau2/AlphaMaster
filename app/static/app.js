@@ -4531,6 +4531,7 @@ function renderEquity(resp) {
     return;
   }
 
+  updateEquityAxisLabel();
   const focus = resp.focus_symbol;
   const sig = [focus, data.total_bars, data.n_points, data.rolling_window, symNames.join(",")].join("|") + "|" + btBuster;
   if (sig === btEquitySig && equityChart) return; // 无变化，避免重建闪烁
@@ -4587,6 +4588,15 @@ function renderEngineBadge(el, info) {
   el.innerHTML =
     `<div class="bt-engine-chip ${info.discrete ? "prod" : "research"}">${info.title}</div>` +
     `<div class="bt-engine-detail">${info.detail}</div>`;
+}
+
+// 资金曲线 Y 轴标签随引擎口径切换：连续=累计对数收益；离散=已实现盈亏的累计简单收益
+function updateEquityAxisLabel() {
+  const el = $("btEquityAxisLabel");
+  if (!el) return;
+  el.textContent = btReportEngineInfo && !btReportEngineInfo.discrete
+    ? "累计对数收益"
+    : "累计收益（已实现盈亏）";
 }
 
 // 资金曲线与绩效卡必须来自同一次回测（同一 run_id）；不一致时提示（旧文件或写盘间隙）
