@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#0e141f"/>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="none" stroke="#5eead4" stroke-opacity="0.35" stroke-width="1.5"/>
+  <text x="32" y="45" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif"
+        font-style="italic" font-size="38" fill="#5eead4">α</text>
+</svg>

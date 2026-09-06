@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.alphamaster.web</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/shanelau/Desktop/strategytrading/AlphaMaster-main/.venv/bin/python</string>
+        <string>-u</string>
+        <string>/Users/shanelau/Desktop/strategytrading/AlphaMaster-main/run_web.py</string>
+        <string>--host</string>
+        <string>127.0.0.1</string>
+        <string>--port</string>
+        <string>8765</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/shanelau/Desktop/strategytrading/AlphaMaster-main</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>SSL_CERT_FILE</key>
+        <string>/Users/shanelau/Desktop/strategytrading/AlphaMaster-main/.venv/lib/python3.13/site-packages/certifi/cacert.pem</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>/Users/shanelau/Desktop/strategytrading/AlphaMaster-main/logs/web.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/shanelau/Desktop/strategytrading/AlphaMaster-main/logs/web.err.log</string>
+</dict>
+</plist>

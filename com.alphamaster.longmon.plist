@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.alphamaster.longmon</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/shanelau/Desktop/strategytrading/AlphaMaster-main/.venv/bin/python</string>
+        <string>-u</string>
+        <string>/Users/shanelau/Desktop/strategytrading/AlphaMaster-main/scripts/monitor_long_streak.py</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/shanelau/Desktop/strategytrading/AlphaMaster-main</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>/Users/shanelau/Desktop/strategytrading/AlphaMaster-main/logs/long_monitor.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/shanelau/Desktop/strategytrading/AlphaMaster-main/logs/long_monitor.err.log</string>
+</dict>
+</plist>

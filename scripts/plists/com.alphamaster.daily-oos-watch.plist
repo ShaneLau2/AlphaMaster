@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- 每日真·样本外自动巡检：增量下载 M5 新 bar，攒够 min-new 根自动重跑 OOS 报告 + 飞书推送。
+         安装：
+           cp scripts/plists/com.alphamaster.daily-oos-watch.plist ~/Library/LaunchAgents/
+           launchctl load ~/Library/LaunchAgents/com.alphamaster.daily-oos-watch.plist
+         卸载：
+           launchctl unload ~/Library/LaunchAgents/com.alphamaster.daily-oos-watch.plist
+         手动跑一次： .venv/bin/python scripts/daily_oos_watch.py
+    -->
+    <key>Label</key>
+    <string>com.alphamaster.daily-oos-watch</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/shanelau/Desktop/strategytrading/AlphaMaster-main/.venv/bin/python</string>
+        <string>/Users/shanelau/Desktop/strategytrading/AlphaMaster-main/scripts/daily_oos_watch.py</string>
+        <string>--min-new</string>
+        <string>5000</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/shanelau/Desktop/strategytrading/AlphaMaster-main</string>
+
+    <key>StandardOutPath</key>
+    <string>/Users/shanelau/Desktop/strategytrading/AlphaMaster-main/logs/daily_oos_watch.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/shanelau/Desktop/strategytrading/AlphaMaster-main/logs/daily_oos_watch.log</string>
+
+    <!-- 每天 09:05 跑一次 -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>9</integer>
+        <key>Minute</key>
+        <integer>5</integer>
+    </dict>
+
+    <!-- 错过后补跑 + 失败重试 3 次 -->
+    <key>RunAtLoad</key>
+    <false/>
+    <key>KeepAlive</key>
+    <false/>
+    <key>ThrottleInterval</key>
+    <integer>3600</integer>
+</dict>
+</plist>

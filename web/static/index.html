@@ -1,0 +1,1257 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AlphaMaster · 量化因子挖掘中心</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
+  <link rel="icon" href="/static/favicon.ico" sizes="16x16 32x32" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&family=Orbitron:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css?v=85" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+</head>
+<body>
+  <!-- 前后端版本不一致提示（app.js 检测到后端缺少新接口时显示） -->
+  <div id="verBanner" class="ver-banner" hidden></div>
+  <!-- 背景动效层 -->
+  <div class="bg-layers" aria-hidden="true">
+    <div class="bg-aurora"></div>
+    <canvas id="glyphCanvas" class="bg-canvas"></canvas>
+    <canvas id="neuralCanvas" class="bg-canvas"></canvas>
+    <div class="bg-grid"></div>
+    <div class="bg-scan"></div>
+    <div class="bg-vignette"></div>
+  </div>
+
+  <div class="app">
+    <header class="header">
+      <div class="brand">
+        <div class="brand-mark" data-text="α">α<span class="brand-ring"></span></div>
+        <div>
+          <h1>AlphaMaster</h1>
+          <p>基于深度神经网络强化学习的量化因子挖掘中心</p>
+        </div>
+      </div>
+      <div class="header-meta" id="headerMeta">
+        <label class="debug-toggle-label">
+          <input type="checkbox" id="debugModeCheck" />
+          <span>调试模式</span>
+        </label>
+        <label class="debug-toggle-label">
+          <input type="checkbox" id="bgAnimCheck" />
+          <span>背景动画</span>
+        </label>
+        <span class="pill" id="jobPill"><i class="pill-dot"></i>空闲</span>
+        <span class="meta-item" id="deviceMeta">—</span>
+        <span class="api-pill-wrap" id="apiPillWrap">
+          <span class="pill api-pill" id="apiPill" role="button" tabindex="0" aria-haspopup="true" aria-expanded="false" aria-label="配置后端服务地址">
+            <span class="api-dot" id="apiDot"></span>
+            <span id="apiPillText">后端 · —</span>
+          </span>
+          <div class="api-pop hidden" id="apiPop" role="dialog" aria-label="后端服务地址配置">
+            <div class="api-pop-head">后端服务地址</div>
+            <div class="api-pop-desc">
+              页面数据取自哪个后端。本机控制台打开时自动<b>同源</b>;
+              GitHub Pages 镜像默认连接本机 <code>http://127.0.0.1:8765</code>, 可在此改成局域网地址等。
+            </div>
+            <input id="apiBaseInput" class="api-pop-input" type="text" spellcheck="false" autocomplete="off"
+              placeholder="http://127.0.0.1:8765 (留空 = 自动/同源)" />
+            <div class="api-pop-actions">
+              <button type="button" class="btn btn-primary" id="apiSaveBtn">应用并刷新</button>
+              <button type="button" class="btn btn-secondary" id="apiResetBtn">恢复自动</button>
+            </div>
+            <div class="api-pop-status" id="apiPopStatus"></div>
+            <div class="api-pop-sep"></div>
+            <div class="api-pop-head">API 令牌</div>
+            <div class="api-pop-desc">
+              所有 <code>/api</code> 请求需携带令牌, 防止公网页面读取本机数据。
+              本页首次访问自动获取并保存在本浏览器; 换浏览器/设备时粘贴本机
+              <code>web_token.txt</code> 的内容即可。
+            </div>
+            <input id="apiTokenInput" class="api-pop-input api-pop-mono" type="text" spellcheck="false" autocomplete="off"
+              placeholder="粘贴令牌 (留空 = 清空后自动获取)" />
+            <div class="api-pop-actions">
+              <button type="button" class="btn btn-primary" id="apiTokenSaveBtn">保存令牌</button>
+              <button type="button" class="btn btn-secondary" id="apiTokenRegenBtn">重新生成</button>
+            </div>
+            <div class="api-pop-status" id="apiTokenStatus"></div>
+          </div>
+        </span>
+      </div>
+    </header>
+
+    <!-- 步骤导航 -->
+    <nav class="stepper" id="stepper">
+      <button type="button" class="step active" data-page="train">
+        <span class="step-index">01</span>
+        <span class="step-body">
+          <span class="step-title">模型训练</span>
+          <span class="step-sub">因子挖掘 · 强化学习</span>
+        </span>
+      </button>
+      <span class="step-link"></span>
+      <button type="button" class="step" data-page="backtest">
+        <span class="step-index">02</span>
+        <span class="step-body">
+          <span class="step-title">策略回测</span>
+          <span class="step-sub">资金曲线 · 绩效评估</span>
+        </span>
+      </button>
+      <span class="step-link"></span>
+      <button type="button" class="step" data-page="realtime">
+        <span class="step-index">03</span>
+        <span class="step-body">
+          <span class="step-title">实时分析</span>
+          <span class="step-sub">信号雷达 · 多品种并发</span>
+        </span>
+      </button>
+      <span class="step-link"></span>
+      <button type="button" class="step" data-page="paper">
+        <span class="step-index">04</span>
+        <span class="step-body">
+          <span class="step-title">模拟实盘</span>
+          <span class="step-sub">纸上交易 · 成交流水</span>
+        </span>
+      </button>
+    </nav>
+
+    <!-- ══════════════ 步骤一：训练页 ══════════════ -->
+    <div class="page active" id="page-train">
+    <section class="panel launch-panel">
+      <span class="hud-corner tl"></span><span class="hud-corner tr"></span>
+      <span class="hud-corner bl"></span><span class="hud-corner br"></span>
+      <h2>启动训练</h2>
+      <div class="launch-form launch-form-file">
+      <div class="launch-row launch-row-main">
+        <button type="button" class="btn btn-secondary btn-browse" id="browseBtn">选择数据文件</button>
+        <div class="data-file-card" id="dataFileCard">
+          <div class="data-file-empty">尚未选择数据文件</div>
+        </div>
+      </div>
+      <div class="launch-row launch-row-range" id="trainRangeRow">
+        <label class="range-label" for="trDataMode">训练数据范围</label>
+        <select id="trDataMode" title="训练数据范围：全部=现状；最近N根=只取最新连续行情；全历史分块=按年代抽连续块，让模型见过不同市场形态">
+          <option value="full">全部（现状）</option>
+          <option value="tail">最近 N 根</option>
+          <option value="spread">全历史分块 N 根</option>
+        </select>
+        <label class="range-field range-n" id="trNBarsField" hidden>
+          <span>根数 N</span>
+          <input type="number" id="trNBars" min="5000" step="1000" placeholder="如 100000" />
+          <small>根</small>
+        </label>
+        <label class="range-field range-c" id="trChunksField" hidden>
+          <span>年代块数</span>
+          <input type="number" id="trChunks" min="2" max="16" step="1" placeholder="自动" />
+        </label>
+        <small class="field-hint" id="trRangeHint"></small>
+      </div>
+      <div class="tr-preview" id="trPreview" hidden>
+        <div class="tr-preview-title">取样区间预览（整段历史 · 相对位置；色块=波动分层）</div>
+        <div class="tr-preview-track" id="trPreviewTrack"></div>
+        <div class="tr-preview-legend" id="trPreviewLegend"></div>
+        <div class="tr-preview-note" id="trPreviewNote"></div>
+      </div>
+        <div class="dl-source-stats" id="dlSourceStats" hidden></div>
+        <div class="launch-row dl-file-row">
+          <label class="dl-file-label" for="dlFileListSelect">data/training/ 已下载文件</label>
+          <select id="dlFileListSelect" title="直接切换已下载的数据文件（免弹对话框）">
+            <option value="">— 选择文件切换 —</option>
+          </select>
+        </div>
+        <div class="launch-row launch-row-manual">
+          <input type="text" id="manualPathInput" placeholder="或直接粘贴 Parquet 完整路径（后台进程无法弹原生窗口时用它）" autocomplete="off" spellcheck="false" />
+          <button type="button" class="btn btn-secondary" id="manualPathBtn">应用路径</button>
+          <small class="field-hint" id="manualPathHint"></small>
+        </div>
+        <div class="launch-row launch-row-download">
+          <input type="text" id="dlSymbolInput" list="dlSymbolPresets" placeholder="联网品种，如 XAUUSD / 600519 / BTCUSDT（或 EXCHANGE:CODE）" autocomplete="off" spellcheck="false" />
+          <datalist id="dlSymbolPresets"></datalist>
+          <select id="dlSourceSelect" title="选择下载数据源">
+            <option value="tradingview" selected>TradingView</option>
+            <option value="binance">Binance</option>
+            <option value="okx">OKX</option>
+            <option value="tongdaxin">通达信</option>
+          </select>
+          <select id="dlTimeframeSelect">
+            <option value="1m">1 分钟</option>
+            <option value="3m">3 分钟</option>
+            <option value="5m">5 分钟</option>
+            <option value="15m">15 分钟</option>
+            <option value="30m">30 分钟</option>
+            <option value="1h" selected>1 小时</option>
+            <option value="2h">2 小时</option>
+            <option value="4h">4 小时</option>
+            <option value="6h">6 小时</option>
+            <option value="8h">8 小时</option>
+            <option value="12h">12 小时</option>
+            <option value="1d">1 天</option>
+            <option value="3d">3 天</option>
+            <option value="1w">1 周</option>
+            <option value="1M">1 月</option>
+          </select>
+          <input type="number" id="dlBarsInput" min="100" max="100000" step="100" value="5000" title="请求 K 线数量（上限 100,000）：Binance 的 1m/3m/5m/15m 可选全量历史，上限 100 万根" aria-label="K线数量" />
+          <button type="button" class="btn btn-secondary" id="dlFetchBtn">联网下载数据</button>
+          <button type="button" class="btn btn-secondary" id="dlBackfillBtn" title="持续向更早历史翻页，直到数据源留存起点（仅 binance / okx 支持；每次每页追加后即落盘）">回溯到数据源起点</button>
+          <small class="field-hint" id="dlHint"></small>
+          <small class="field-hint dl-depth-hint" id="dlDepthHint">深度参考（匿名会话实测）：1m≈1 万根(7 天) · 15m≈6 千根(2 个月) · 1h≈1 万根(1.7 年) · 4h/1d≈数万根（多年）</small>
+        </div>
+        <div class="dl-job-block" id="dlJobProgress" hidden>
+          <div class="dl-job-line"><span id="dlJobText">下载中…</span><span class="dl-job-pct" id="dlJobPct"></span></div>
+          <div class="dl-job-track"><div class="dl-job-bar" id="dlJobBar"></div></div>
+        </div>
+        <div class="dl-queue" id="dlQueueList" hidden></div>
+        <div class="dl-history" id="dlHistoryPanel" hidden>
+          <div class="dl-history-head"><span>下载历史</span><span class="dl-history-count" id="dlHistoryCount"></span></div>
+          <table class="dl-history-table">
+            <thead>
+              <tr><th>来源</th><th>品种</th><th>周期</th><th>K线</th><th>下载日期</th></tr>
+            </thead>
+            <tbody id="dlHistoryBody"></tbody>
+          </table>
+        </div>
+        <div class="launch-actions" role="group" aria-label="训练操作">
+          <button class="btn btn-primary" id="startBtn" disabled>开始训练</button>
+          <button class="btn btn-secondary" id="retrainBtn" disabled title="清除检查点，从头重新搜索（保留已有更优策略）">重新训练</button>
+          <button class="btn btn-danger" id="stopBtn" disabled>停止</button>
+          <span class="action-sep" aria-hidden="true"></span>
+          <button class="btn btn-secondary" id="exportBtn" disabled title="下载当前品种的最优策略 JSON">导出策略</button>
+          <button class="btn btn-secondary" id="exportTrainingBtn" disabled title="打包 checkpoint、训练曲线与策略为 zip">导出训练</button>
+          <button class="btn btn-secondary" id="importTrainingBtn" disabled title="上传 .zip 或 .pt，下次训练断点续训">导入训练</button>
+          <input type="file" id="importTrainingFile" accept=".zip,.pt" hidden />
+        </div>
+        <small class="field-hint">强制离线：只用本地 Parquet。命名：<code>{品种}_{周期}.parquet</code>，如 <code>XAUUSD_H1.parquet</code> / <code>002008_60min.parquet</code>（<code>60min</code>/<code>1h</code> 等同 <code>H1</code>）</small>
+      </div>
+    </section>
+
+    <div class="split">
+      <section class="panel chart-panel">
+        <span class="hud-corner tl"></span><span class="hud-corner tr"></span>
+        <span class="hud-corner bl"></span><span class="hud-corner br"></span>
+        <div class="panel-head">
+          <h2 id="chartTitle">训练曲线</h2>
+          <span class="hint" id="chartHint">选择文件并开始训练后显示</span>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="mainChart"></canvas>
+        </div>
+        <details class="chart-metrics-help" open>
+          <summary>指标说明</summary>
+          <ul class="metrics-list">
+            <li>
+              <span class="metric-swatch" style="--swatch: #34f5c8"></span>
+              <div>
+                <strong>最优分数</strong>
+                <p>到目前为止找到的最好因子公式得分，越高表示回测表现越好，曲线阶梯上升说明发现了更优公式。</p>
+              </div>
+            </li>
+            <li>
+              <span class="metric-swatch" style="--swatch: #38bdf8"></span>
+              <div>
+                <strong>验证分数</strong>
+                <p>当前这一步在验证集上的平均得分，反映近期一批公式的整体质量，会有起伏属正常。</p>
+              </div>
+            </li>
+          </ul>
+        </details>
+        <div class="formula-box" id="formulaBox">
+          <span class="formula-label">最优公式</span>
+          <code id="formulaText">—</code>
+        </div>
+      </section>
+
+      <section class="panel log-panel">
+        <span class="hud-corner tl"></span><span class="hud-corner tr"></span>
+        <span class="hud-corner bl"></span><span class="hud-corner br"></span>
+        <div class="panel-head">
+          <h2>训练日志</h2>
+          <span class="hint" id="logHint">—</span>
+        </div>
+        <pre class="log-view" id="logView">等待任务…</pre>
+      </section>
+    </div>
+
+    <section class="panel exp-panel" id="expPanelSection">
+      <span class="hud-corner tl"></span><span class="hud-corner tr"></span>
+      <span class="hud-corner bl"></span><span class="hud-corner br"></span>
+      <div class="panel-head">
+        <h2>范围对比实验 · tail vs spread</h2>
+        <span class="hint" id="expStatusHint">对比「最近 N 根」与「全历史分块 N 根」两种训练范围（串行短训，不写正式策略）。<b id="expSourceName">先在上方选择数据文件</b></span>
+      </div>
+      <div class="exp-form">
+        <label class="exp-field"><span>根数 N</span><input type="number" id="expNBars" min="5000" step="1000" value="60000" /></label>
+        <label class="exp-field"><span>训练步数</span><input type="number" id="expSteps" min="1" max="400" step="1" value="12" title="每路各训的步数。12-20≈快速 pilot；正式结论建议 ≥200 过夜跑" /></label>
+        <label class="exp-field"><span>seeds</span><input type="text" id="expSeeds" value="42" title="逗号分隔；多 seed 取 best 最高者对比" /></label>
+        <label class="exp-field"><span>年代块数(可选)</span><input type="number" id="expChunks" min="2" max="16" placeholder="自动" /></label>
+        <label class="exp-field"><span>代表口径</span><select id="expRepSel" title="结论/报告“选代表”口径：in-sample best（每 seed 训练最优）/ 跨 seed 中位 holdout（稳健默认）/ holdout best（谨慎，可能挑中彩票 seed）。报告会同时给出 in-sample 与 holdout 两种口径的结论对照"><option value="holdout_median">跨 seed 中位 holdout（默认）</option><option value="in_sample">in-sample best</option><option value="holdout_best">holdout best</option></select></label>
+        <button type="button" class="btn btn-primary" id="expRunBtn" disabled>开始对比实验</button>
+        <button type="button" class="btn btn-danger" id="expStopBtn" disabled>停止</button>
+      </div>
+      <pre class="log-view exp-log" id="expLog" hidden></pre>
+      <div class="exp-result" id="expResult" hidden>
+        <div class="panel-head"><h3>对比结果</h3><span class="hint">两条曲线为各自 best run 的训练曲线；结论仅对本次步数有效</span></div>
+        <table class="exp-summary-table" id="expSummaryTable"></table>
+        <div class="chart-wrap exp-chart-wrap"><canvas id="expChart"></canvas></div>
+        <ul class="exp-conclusion" id="expConclusion"></ul>
+      </div>
+      <div class="exp-matrix-best" id="expMatrixBest" hidden>
+        <div class="panel-head"><h3>🎯 同品种 N×N 最优组合</h3><span class="hint" id="expMatrixHint">回测页跑完「一键全组合回测」后，此处展示该品种最优组合的资金曲线与最大回撤约束（供与 tail/spread 结果并排参考）</span></div>
+        <div class="exp-mx-meta" id="expMatrixMeta"></div>
+        <div class="exp-mx-curve" id="expMatrixCurve"><div class="metric-empty">—</div></div>
+      </div>
+    </section>
+
+    <section class="panel ai-panel" id="aiPanelSection">
+      <span class="hud-corner tl"></span><span class="hud-corner tr"></span>
+      <span class="hud-corner bl"></span><span class="hud-corner br"></span>
+      <div class="panel-head">
+        <h2>训练巡检 · 内置 Agent</h2>
+        <span class="hint" id="aiProviderHint">自动 · 无需 API Key</span>
+      </div>
+      <div class="ai-form">
+        <div class="ai-row">
+          <button type="button" class="btn btn-primary" id="aiInspectBtn">立即巡检一次</button>
+          <button type="button" class="btn btn-secondary" id="aiInspectClearBtn" title="清空巡检记录">清空</button>
+        </div>
+        <small class="field-hint" id="aiChannelHint">训练运行期间，内置巡检会<b>不定时</b>读取训练日志并自动诊断：进度 / 停滞 / 分布塌缩 / 与线上冠军对比 / 是否值得继续。全部为本地规则判断，不调用外部 AI、不需要任何 Key。</small>
+      </div>
+      <div class="ai-answer" id="aiAnswerView">开始训练后，巡检会自动在这里给出诊断结论。</div>
+    </section>
+
+    <section class="panel howto-panel">
+      <span class="hud-corner tl"></span><span class="hud-corner tr"></span>
+      <span class="hud-corner bl"></span><span class="hud-corner br"></span>
+      <details class="chart-metrics-help bt-howto" open>
+        <summary>训练说明：并行？最优分数 / 验证分数是什么？</summary>
+        <ol class="bt-howto-list">
+          <li>
+            <strong>单品种单周期就已经把 CPU 吃满了</strong>
+            <p>挖因子这一步计算很重：特征、公式搜索、回测验证会把机器算力用到接近满载。这时再并行开第二个品种或另一个周期，大家只是在抢同一批 CPU，谁也跑不快。</p>
+          </li>
+          <li>
+            <strong>并行并不等于整体更快</strong>
+            <p>两路一起跑，往往各自都变慢，总完工时间通常不比「先训完一个再训下一个」更短，有时还更拖。所以默认一次只训一路，把算力集中用在当前任务上更划算。</p>
+          </li>
+          <li>
+            <strong>只盯一个品种，更好观察训练情况</strong>
+            <p>曲线、日志、最优公式都只对应这一组数据，涨没涨分一眼能看清。多品种并行时页面和日志会搅在一起，反而不容易判断「这个品种还值不值得继续挖」。</p>
+          </li>
+          <li>
+            <strong>最优分数是什么</strong>
+            <p>到目前为止挖到的<strong>最好那条公式</strong>的得分。它一般只升不降：一旦发现更好的公式，这个数就会抬一截；长时间不动，说明这段时间还没挖到更强的。</p>
+          </li>
+          <li>
+            <strong>验证分数是什么</strong>
+            <p>当前这一步在<strong>验证集</strong>上算出来的平均表现，反映「最近这批公式整体好不好」。它会上下波动很正常；更值得看的是整体有没有慢慢抬高，而不是盯着单次跳动。</p>
+          </li>
+          <li>
+            <strong>为什么验证曲线会一截一截地掉下去再爬起来？</strong>
+            <p>图上的验证分数不是「当前最优那一条」的得分，而是<strong>这一步随机抽出来的一整批公式的平均分</strong>。挖着挖着，模型会越来越爱重复同一类公式（探索变少），系统就会主动「搅一搅」——加大随机、换一批新配方继续搜。刚搅完时，新配方里好坏掺半，平均值会突然掉一截；随后又慢慢学到更好的组合，曲线再往上爬。所以会看到锯齿状起伏。</p>
+            <p>绿色的最优分数只记「历史最好的那一次」，所以不会跟着掉下去，只会阶梯往上抬。锯齿本身多半是在重新探索，不等于训练坏了。</p>
+          </li>
+          <li>
+            <strong>重新训练有机会找出更好的量化因子</strong>
+            <p>「开始训练」会接着上次的检查点继续挖；「重新训练」会清掉检查点，从零换一条随机路径再搜一遍。因为搜索带随机性，有时能挖到比现在更高的分数。</p>
+            <p>已有的最优策略会当作分数下限留着——只有找到更好的才会覆盖，不会一开局就被弱公式冲掉。代价是要再花一整轮算力，适合本轮训完或最优分数长期不动时再用。</p>
+          </li>
+        </ol>
+      </details>
+    </section>
+
+    <section class="panel strategies-panel">
+      <span class="hud-corner tl"></span><span class="hud-corner tr"></span>
+      <span class="hud-corner bl"></span><span class="hud-corner br"></span>
+      <h2>已保存策略</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>品种</th>
+              <th>周期</th>
+              <th>分数</th>
+              <th>训练数据 (文件 · 日期范围)</th>
+              <th>公式</th>
+              <th>溯源校验</th>
+            </tr>
+          </thead>
+          <tbody id="strategiesBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel debug-panel" id="debugPanelSection">
+      <span class="hud-corner tl"></span><span class="hud-corner tr"></span>
+      <span class="hud-corner bl"></span><span class="hud-corner br"></span>
+      <div class="panel-head">
+        <h2>调试 / 报错输出</h2>
+        <span class="hint" id="debugLogPaths">—</span>
+        <div class="debug-tools">
+          <input type="text" id="debugFilter" class="debug-filter" placeholder="筛选日志…" />
+          <button type="button" class="debug-btn" id="debugRefreshBtn">刷新</button>
+          <button type="button" class="debug-btn" id="debugCopyBtn">复制</button>
+        </div>
+      </div>
+      <pre class="debug-view" id="debugView">暂无报错</pre>
+    </section>
+
+    </div><!-- /page-train -->
+
+    <!-- ══════════════ 步骤二：回测页 ══════════════ -->
+    <div class="page" id="page-backtest">
+      <div id="btRestoreNotices" class="bt-notices"></div>
+      <section class="panel launch-panel">
+        <span class="hud-corner tl"></span><span class="hud-corner tr"></span>
+        <span class="hud-corner bl"></span><span class="hud-corner br"></span>
+        <h2>启动回测</h2>
+        <div class="launch-form launch-form-file">
+          <div class="launch-row launch-row-main">
+            <button type="button" class="btn btn-secondary btn-browse" id="btBrowseStrategyBtn">选择策略</button>
+            <div class="data-file-card" id="btStrategyCard">
+              <div class="data-file-empty">尚未选择策略文件</div>
+            </div>
+            <div class="launch-actions">
+              <button class="btn btn-primary" id="btStartBtn" disabled>开始回测</button>
+              <button class="btn btn-danger" id="btStopBtn" disabled>停止</button>
+            </div>
+          </div>
+          <div class="launch-row dl-file-row">
+            <label class="dl-file-label" for="btStrategyListSelect">strategies/ 已保存策略</label>
+            <select id="btStrategyListSelect" title="直接切换已保存策略（免弹对话框）">
+              <option value="">— 选择策略切换 —</option>
+            </select>
+          </div>
+          <div class="launch-row dl-file-row">
+            <label class="dl-file-label" for="btDataSelect">回测数据（Parquet）</label>
+            <select id="btDataSelect" title="模型不一定只在原训练数据上回测：\n跟随策略（默认）= 用策略 JSON 记录的训练数据\n也可选择其他品种/周期/切片的本地数据，验证模型在别处的表现\n选择后策略卡会显示所用数据文件">
+              <option value="">— 跟随策略（默认） —</option>
+            </select>
+          </div>
+          <div class="launch-row bt-cost-row">
+            <label class="bt-cost-field">
+              <span>手续费（单边 %）</span>
+              <input type="number" id="btCommissionInput" min="0" max="5" step="0.01" value="0.02" />
+            </label>
+            <label class="bt-cost-field">
+              <span>滑点（单边 %）</span>
+              <input type="number" id="btSlippageInput" min="0" max="5" step="0.01" value="0.01" />
+            </label>
+            <label class="bt-cost-field">
+              <span>每笔投入上限（%）</span>
+              <input type="number" id="btMaxPosInput" min="1" max="200" step="1" value="100" title="每笔投入上限（占当时账户权益 %，与模拟实盘共用同一设置）：\n单笔仓位 = 信号强度 |tanh(因子)| × 上限%。例如 5% → 强度 0.05~1 之间时仓位落在 0~5%。\n100% = 权益的整份（与之前行为一致）；离散引擎同时受「满仓名义(一份)」货币额封顶。" />
+            </label>
+            <label class="bt-cost-field">
+              <span>无信号阈值</span>
+              <select id="btThresholdSelect" title="|tanh(因子)| 小于该值时方向 = FLAT（观望区），回测/回放/实时/模拟实盘共用。\n调高阈值让模型偶尔“观望”，不再永远单边满仓。">
+                <option value="0.05">0.05（默认）</option>
+                <option value="0.3">0.3</option>
+                <option value="0.5">0.5</option>
+                <option value="0.8">0.8（重度观望）</option>
+              </select>
+            </label>
+            <label class="bt-cost-field">
+              <span>样本外窗口（根）</span>
+              <input type="number" id="btWindowInput" min="800" step="100" placeholder="空=全部" title="只回测最后 N 根 K 线（例如训练尾部 holdout 之后的新数据，训练从未见过）；留空=全部历史。特征 warm-up 至少 800 根" />
+            </label>
+            <span class="bt-cost-sum" id="btCostSumHint">合计单边成本 0.03%</span>
+            <label class="bt-cost-field bt-policy-field">
+              <span>持仓管理</span>
+              <select id="btPolicySelect" title="出场策略（参数内置，不手填）：\n信号跟随=与训练/回测同口径，只在信号翻转时平仓\n止盈止损保护=离散撮合（同模拟盘口径）：止盈 +4%/止损 -2%/移动止损\n熔断止损=离散撮合：止损 -2% 紧急熔断\n非 signal 方案的结果与模拟盘同口径，会和连续口径略不同。可用下方「正交叠加」再做组合。"></select>
+            </label>
+            <label class="bt-cost-field bt-policy-field">
+              <span>正交叠加</span>
+              <select id="btStackSelect" title="把上方主方案再叠加一个模块（求并集出场，同一根 bar 先触及者成交）：\n不叠加=只按上方主方案\n信号跟随=不加任何出场（若主方案非 signal，等于只保留主方案）\n叠加回撤熔断(DD)=账户级回撤门控可与任意单笔出场正交叠加\n叠加吊灯/保本/时间等=多一层出场保护。\n示例：主=吊灯止损(ATR) + 叠加=回撤熔断(DD) → dd+chandelier"></select>
+            </label>
+          </div>
+          <div class="hint-wrap"><small class="field-hint" id="btPolicyHint">模型 × 持仓管理(可正交叠加)自由组合。默认「信号跟随 + 不叠加」=与训练连续口径一致；选到非 signal 方案时改走离散撮合引擎（与模拟实盘同口径）。</small><a href="/docs/engines-compare" target="_blank" rel="noopener" class="hint-link">回测/回放/实盘口径对照表</a></div>
+          <div class="bt-last-combo" id="btLastCombo" title="回测页的持仓组合与样本外窗口自动记忆（/api/settings），重启后恢复；模拟实盘/实时分析/历史回放页默认沿用同一份主方案与窗口"></div>
+          <div id="btMatrixBest"></div>
+          <div id="btCompare"></div>
+          <div class="cost-box">
+            <div class="ab-head">💸 成本敏感性 · 真实 edge
+              <span class="hint" id="btCostHint">同一模型×持仓方案在 0→高 成本档位下重跑（数据/窗口/方案取上方设置），看净收益与盈亏比在哪个“每边总成本”由正转负</span>
+            </div>
+            <div class="ab-row">
+              <button type="button" class="btn btn-primary btn-mini" id="btCostRunBtn">跑成本敏感性</button>
+              <span class="hint" id="btCostSweepHint">档位：0 → 0.5%（每边 手续费+滑点）· 当前成本点已标注</span>
+            </div>
+            <div class="cost-chart-wrap">
+              <canvas id="btCostChart"></canvas>
+            </div>
+            <div class="cost-stats" id="btCostStats"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 模型库：当前最佳模型 & 可切换的已保存模型列表 -->
+      <section class="panel strategies-panel">
+        <span class="hud-corner tl"></span><span class="hud-corner tr"></span>
+        <span class="hud-corner bl"></span><span class="hud-corner br"></span>
+        <div class="panel-head">
+          <h2>模型库（当前最佳模型与最佳策略）</h2>
+          <span class="hint" id="btModelHint">切换模型 → 回测用该模型；当前使用的模型会高亮</span>
+        </div>
+        <div class="model-grid" id="btModelGrid"><div class="metric-empty">加载策略列表…</div></div>
+      </section>
+
+      <!-- 回测绩效概览 -->
+      <section class="panel bt-summary-panel">
+        <span class="hud-corner tl"></span><span class="hud-corner tr"></span>
+        <span class="hud-corner bl"></span><span class="hud-corner br"></span>
+        <div class="panel-head">
+          <h2>回测绩效</h2>
+          <span class="hint" id="btPortfolioHint">尚未运行回测</span>
+        </div>
+        <div class="metric-grid" id="btPortfolioGrid">
+          <div class="metric-empty">运行回测后显示收益、夏普、盈亏比等指标</div>
+        </div>
+        <div class="bt-symbol-block" id="btSymbolBlock" hidden>
+          <div class="bt-symbol-title">
+            <span class="hint" id="btTableHint">—</span>
+          </div>
+          <div class="table-wrap">
+            <table class="bt-table">
+              <thead>
+                <tr>
+                  <th>品种</th>
+                  <th>收益</th>
+                  <th>Sharpe</th>
+                  <th>Sortino</th>
+                  <th>最大回撤</th>
+                  <th>盈亏比</th>
+                  <th>交易数</th>
+                  <th>胜率</th>
+                </tr>
+              </thead>
+              <tbody id="btTableBody">
+                <tr class="empty-row"><td colspan="8">暂无回测结果</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 资金曲线（交互式 HTML 图表） -->
+      <section class="panel bt-charts-panel">
+        <span class="hud-corner tl"></span><span class="hud-corner tr"></span>
+        <span class="hud-corner bl"></span><span class="hud-corner br"></span>
+        <div class="panel-head">
+          <h2>资金曲线</h2>
+          <span class="hint" id="btChartsHint">回测完成后展示资金曲线</span>
+        </div>
+
+        <div class="equity-live" id="btEquityLive" hidden>
+          <div class="equity-stats" id="btEquityStats"></div>
+          <div class="equity-chart-block">
+            <div class="equity-axis-label">累计对数收益</div>
+            <div class="equity-chart-wrap">
+              <canvas id="btEquityChart"></canvas>
+            </div>
+          </div>
+          <div class="equity-chart-block roll">
+            <div class="equity-axis-label" id="btRollingLabel">滚动夏普 · Rolling Sharpe</div>
+            <div class="equity-chart-wrap roll">
+              <canvas id="btRollingChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="metric-empty" id="btEquityEmpty">回测完成后展示资金曲线</div>
+
+        <details class="chart-metrics-help bt-howto" open>
+          <summary>回测是怎么算的？（一看就懂）</summary>
+          <ol class="bt-howto-list">
+            <li>
+              <strong>先拿历史行情“假装交易”</strong>
+              <p>回测不会真的下单。它把过去很多天的价格拿出来，按策略规则一步步走一遍，看看如果当时真做了，钱会变多还是变少。</p>
+            </li>
+            <li>
+              <strong>因子先打一个“信号分”</strong>
+              <p>策略公式会给每一根 K 线打分：正分偏向看涨，负分偏向看跌，靠近 0 就先别乱动。</p>
+              <p>分数的绝对值越大，信号就越明确。比如 +3 比 +0.2 更坚决地看涨，-3 比 -0.2 更坚决地看跌。</p>
+            </li>
+            <li>
+              <strong>信号分越大，仓位就越大</strong>
+              <p>仓位不是只有“全仓 / 空仓”两档，而是用 <code>tanh(信号分)</code> 压到大约 -1 到 +1 之间。</p>
+              <ul>
+                <li>正分越大 → 做多越多（最多接近满仓 +1）</li>
+                <li>负分越小 → 做空越多（最多接近满仓 -1）</li>
+                <li>分数很弱 → 仓位接近 0（几乎不持仓）</li>
+              </ul>
+              <p>可以把它想成：信心越大，下注越多；但再大也不会超过“一整份仓位”。</p>
+            </li>
+            <li>
+              <strong>赚亏怎么算</strong>
+              <p>这一步大概赚多少 ≈ 仓位 × 价格涨跌。仓位大，涨了赚得多，跌了也亏得多。换仓时还会扣掉你设的手续费和滑点。</p>
+            </li>
+            <li>
+              <strong>上面那些图在说什么</strong>
+              <ul>
+                <li>资金曲线：把每一步赚亏累加起来，看账户是往上爬还是往下掉。</li>
+                <li>滚动夏普：看最近一段时间“赚得稳不稳”，越高通常越好。</li>
+              </ul>
+            </li>
+          </ol>
+        </details>
+      </section>
+
+      <div class="split bt-log-full">
+        <!-- 回测日志 -->
+        <section class="panel log-panel">
+          <span class="hud-corner tl"></span><span class="hud-corner tr"></span>
+          <span class="hud-corner bl"></span><span class="hud-corner br"></span>
+          <div class="panel-head">
+            <h2>回测日志</h2>
+            <span class="hint" id="btLogHint">—</span>
+          </div>
+          <div class="bt-phase" id="btPhaseBar">
+            <div class="bt-phase-track"><div class="bt-phase-fill" id="btPhaseFill"></div></div>
+            <span class="bt-phase-label" id="btPhaseLabel">待机</span>
+          </div>
+          <pre class="log-view" id="btLogView">等待任务…</pre>
+        </section>
+      </div>
+
+      <!-- 三轴联合回测（持仓方案 × 上限% × 无信号阈值）：合并 正交组合矩阵 / 阈值敏感性 / A·B 对比 -->
+      <section class="panel bt-matrix-section">
+        <span class="hud-corner tl"></span><span class="hud-corner tr"></span>
+        <span class="hud-corner bl"></span><span class="hud-corner br"></span>
+        <div class="panel-head">
+          <h2>🎛 三轴联合回测 · 持仓方案 × 上限% × 无信号阈值</h2>
+          <span class="hint" id="btMatrixHint">合并了「持仓正交组合矩阵」「阈值敏感性·观望带」「⚖ A/B·持仓方案对比」：22 个正交组合（含默认 信号跟随）× 上限% 档 × 阈值档 一次跑完全网格 · 离散撮合引擎与回测/模拟盘同口径 · 输出 results/combo_sweep_latest.json</span>
+          <span class="bt-matrix-sym-badge" id="btMatrixSymBadge" hidden title="矩阵设置（窗口模式/窗口/数据文件/regime）已按该品种自动带出上次记忆；切换策略（品种）会一起切换" ></span>
+        </div>
+        <div class="bt-matrix-toolbar">
+          <label class="matrix-win-label" title="tail=取数据文件尾部 N 根（训练未见样本外）；spread=按波动率/趋势 regime 分层取块后拼接，让高低波动年代按目标比例进入样本">窗口模式
+            <select id="btMatrixModeSelect" class="mini-select">
+              <option value="tail">尾部 N 根（样本外）</option>
+              <option value="spread">regime 分层抽样</option>
+            </select>
+          </label>
+          <label class="matrix-win-label" id="btMatrixWinLabel" title="tail=只取最后 N 根（特征 warm-up ≥800）；spread=抽样总量（各年代块合计）">窗口（根）
+            <input type="number" id="btMatrixWindowInput" min="800" step="500" placeholder="全部历史" class="mini-input matrix-win-input">
+          </label>
+          <label class="matrix-win-label" id="btMatrixChunkLabel" hidden>块数
+            <input type="number" id="btMatrixChunksInput" min="2" max="12" step="1" value="4" class="mini-input matrix-win-input">
+          </label>
+          <label class="matrix-win-label" id="btMatrixRegimeLabel" hidden>regime
+            <select id="btMatrixRegimeSelect" class="mini-select">
+              <option value="vol">波动率分层</option>
+              <option value="trend">趋势分层</option>
+              <option value="equal">年代等分</option>
+            </select>
+          </label>
+          <label class="matrix-win-label" title="矩阵回测用的数据文件：默认跟随策略记录的训练数据，也可选其他品种/周期/切片（按品种记忆）">数据文件
+            <select id="btMatrixDataSelect" class="mini-select matrix-data-select">
+              <option value="">跟随策略</option>
+            </select>
+          </label>
+          <label class="matrix-win-label" title="每笔投入上限% 档位：逗号分隔多档（如 10,25,100），每个组合×每档各跑一行 —— 原「A/B 混合上限对比」">上限%档位
+            <input type="text" id="btMatrixCapsInput" value="10,25,100" class="mini-input matrix-win-input" />
+          </label>
+          <label class="matrix-win-label" title="无信号阈值档位：逗号分隔（0&lt;t&lt;1），|tanh(因子)|&lt;t → FLAT 观望 —— 原「阈值敏感性·观望带」四档">阈值档位
+            <input type="text" id="btMatrixThrInput" value="0.05,0.3,0.5,0.8" class="mini-input matrix-win-input" />
+          </label>
+          <button type="button" id="btMatrixRunBtn" class="btn btn-primary btn-mini">一键三轴联合回测（22 组合 × 上限档 × 阈值档）</button>
+          <button type="button" id="btMatrixStopBtn" class="btn btn-mini" hidden>停止</button>
+          <span class="hint" id="btMatrixRunHint">空闲：面板展示最近一次 results/combo_sweep_latest.json</span>
+        </div>
+        <details class="bt-matrix-details" id="btMatrixDetails">
+          <summary>展开：全局最优 + 每档阈值/每档上限最优 + 全网格排名表（可排序）+ 按切片（上限×阈值）查看 总收益/夏普/最大回撤/盈亏比 矩阵 + 帕累托 + 叠加对比（多选 ≥2 组合 → 资金曲线/滚动夏普）</summary>
+          <div class="bt-matrix-meta" id="btMatrixMeta"></div>
+          <div class="bt-matrix-slice-row" id="btMatrixSliceRow" hidden>
+            <label class="matrix-win-label">矩阵切片：上限%
+              <select id="btSliceCapSelect" class="mini-select"></select>
+            </label>
+            <label class="matrix-win-label">阈值
+              <select id="btSliceThrSelect" class="mini-select"></select>
+            </label>
+            <span class="hint" id="btSliceHint"></span>
+          </div>
+          <div id="btComboGrid"></div>
+          <div id="btMatrixBody"><div class="metric-empty">展开后加载组合矩阵…</div></div>
+          <div class="equity-live bt-matrix-curve" id="btMatrixCurveLive" hidden>
+            <div class="equity-stats" id="btMatrixCurveStats"></div>
+            <div class="mx-overlay-bar" id="btMatrixOverlayBar" hidden>
+              <label for="btMatrixOverlaySel">叠加对比（可多选 2-3 个组合）</label>
+              <select id="btMatrixOverlaySel" multiple size="5"></select>
+              <button type="button" class="mini-btn" id="btMatrixOverlayClear">清除叠加</button>
+              <span class="hint" id="btMatrixOverlayHint">选中组合的资金曲线叠加在下图</span>
+            </div>
+            <div class="equity-chart-block" id="btMatrixOverlayBlock" hidden>
+              <div class="equity-axis-label">多组合叠加对比（净值 · 起始 1.0）</div>
+              <div class="equity-chart-wrap">
+                <canvas id="btMatrixOverlayChart"></canvas>
+              </div>
+              <div class="equity-axis-label" id="btMatrixOverlayRollLabel">多组合滚动夏普对比（同窗口口径）</div>
+              <div class="equity-chart-wrap roll">
+                <canvas id="btMatrixOverlayRollChart"></canvas>
+              </div>
+            </div>
+
+          </div>
+        </details>
+      </section>
+
+      <!-- 同一模型：回测 vs 回放 双曲线视图（复用回放页「同参数回测对比」组件） -->
+      <section class="panel bt-dual-panel">
+        <span class="hud-corner tl"></span><span class="hud-corner tr"></span>
+        <span class="hud-corner bl"></span><span class="hud-corner br"></span>
+        <div class="panel-head">
+          <h2>同参双口径 · 回测 vs 回放</h2>
+          <span class="hint" id="btDualHint">同一模型 × 当前 数据/持仓方案/窗口/成本：把「回测口径」与「模拟实盘离散撮合（回放）」两条资金曲线叠在同一张图。signal → 连续 vs 离散差异；带出场模块 → 两线重合即引擎一致性校验通过。</span>
+          <button type="button" class="btn btn-secondary" id="btDualBtn" disabled>同参回放叠加</button>
+        </div>
+        <div class="equity-live" id="btDualLive" hidden>
+          <div class="equity-chart-block">
+            <div class="equity-axis-label" id="btDualAxis">累计净值（1.0 起步）· 同一模型：回测 vs 回放</div>
+            <div class="equity-chart-wrap">
+              <canvas id="btDualChart"></canvas>
+            </div>
+          </div>
+          <div class="rs-cmp-cols" id="btDualSummary"></div>
+        </div>
+        <div class="metric-empty" id="btDualEmpty">未运行 — 用当前回测设置点击「同参回放叠加」：同一因子各跑一遍 回测口径 + 回放（模拟实盘离散）口径并叠加对照。</div>
+      </section>
+    </div><!-- /page-backtest -->
+
+    <!-- ══════════════ 步骤三：实时分析页 ══════════════ -->
+    <div class="page" id="page-realtime">
+      <section class="panel launch-panel">
+        <span class="hud-corner tl"></span><span class="hud-corner tr"></span>
+        <span class="hud-corner bl"></span><span class="hud-corner br"></span>
+        <h2>添加监控</h2>
+        <div class="rt-form">
+          <label class="rt-field">
+            <span>数据源</span>
+            <select id="rtSourceSelect"></select>
+          </label>
+          <label class="rt-field">
+            <span>品种</span>
+            <input type="text" id="rtSymbolInput" list="rtSymbolPresets" placeholder="如 XAUUSD / 600519" autocomplete="off" />
+            <select id="rtSymbolSelect" hidden></select>
+            <datalist id="rtSymbolPresets"></datalist>
+          </label>
+          <label class="rt-field">
+            <span>周期</span>
+            <select id="rtTimeframeSelect"></select>
+          </label>
+          <label class="rt-field rt-field-wide">
+            <span>因子来源</span>
+            <select id="rtStrategySelect"></select>
+          </label>
+          <label class="rt-field">
+            <span>持仓管理</span>
+            <select id="rtPolicySelect" title="出场策略（参数内置，不手填）：\n信号跟随=只在信号翻转/转弱时平仓（与回测同口径）\n止盈止损保护=固定止盈 +4%/止损 -2%/移动止损\n熔断止损=信号为主，亏损 ≥-2% 强制平仓\n选非 signal 方案时，监控卡价格图上会画出建议入场/止损/止盈线"></select>
+          </label>
+          <label class="rt-field">
+            <span>正交叠加</span>
+            <select id="rtStackSelect" title="把主方案再叠加一个模块（求并集出场，同一根 bar 先触及者成交）：\n不叠加=只按主方案\n叠加回撤熔断(DD)等账户级门控在实时分析卡无账户概念，仅生效单笔出场部分\n示例：主=吊灯止损(ATR) + 叠加=回撤熔断(DD) → dd+chandelier"></select>
+          </label>
+          <small class="field-hint rt-policy-hint" id="rtPolicyHint"></small>
+          <div class="rt-actions">
+            <button type="button" class="btn btn-secondary" id="rtBrowseStrategyBtn" title="导入本地策略 JSON">导入策略</button>
+            <button type="button" class="btn btn-primary" id="rtAddBtn">加入监控</button>
+          </div>
+        </div>
+        <div class="rt-form-foot">
+          <span class="rt-source-hint" id="rtSourceHint">—</span>
+          <span class="rt-thr-hint">无信号阈值
+            <select id="rtThresholdSelect" title="|tanh(因子)| 小于该值时方向 = FLAT（观望区），回测/回放/实时/模拟实盘共用同一设置。">
+              <option value="0.05">0.05（默认）</option>
+              <option value="0.3">0.3</option>
+              <option value="0.5">0.5</option>
+              <option value="0.8">0.8（重度观望）</option>
+            </select>
+          </span>
+          <span class="rt-thr-hint" id="rtThresholdHint">|tanh(因子)| &lt; 0.05 → FLAT</span>
+        </div>
+        <small class="field-hint" id="rtStrategyPicked">因子来源：从已保存策略下拉选择，或「导入策略」选本地 JSON。信号取最后已收盘 bar。</small>
+      </section>
+
+      <section class="panel rt-radar-panel">
+        <span class="hud-corner tl"></span><span class="hud-corner tr"></span>
+        <span class="hud-corner bl"></span><span class="hud-corner br"></span>
+        <div class="panel-head">
+          <h2>信号雷达</h2>
+          <div class="rt-head-right">
+            <span class="hint" id="rtStatusHint">未启动</span>
+          </div>
+        </div>
+        <div class="rt-grid" id="rtGrid">
+          <div class="metric-empty">尚无监控项。添加「数据源 + 品种 + 周期 + 因子」后开始实时分析。</div>
+        </div>
+
+        <details class="chart-metrics-help bt-howto" open>
+          <summary>怎么看信号？还有哪些要注意</summary>
+          <ol class="bt-howto-list">
+            <li>
+              <strong>这张卡怎么看？（一眼看懂）</strong>
+              <ul>
+                <li>先看中间下面那行方向：<strong>预期上涨</strong>（偏多）或<strong>预期下跌</strong>（偏空）。颜色也会跟着变——绿偏多、红偏空。</li>
+                <li>再看大字把握：策略对这个方向有多坚决——一点把握 → 把握不大 → 一半把握 → 比较有把握 → 很有把握。半环亮得越满，把握越大。</li>
+                <li>若显示「没把握 / 先观望」，表示信号太弱，先别当买卖依据。</li>
+                <li>「因子」是内部算出来的分数，负的偏空、正的偏多，一般不用盯着它；看方向 + 把握就够了。</li>
+                <li>这不是「猜对的概率」，只是策略此刻有多坚决。</li>
+              </ul>
+            </li>
+            <li>
+              <strong>只在「当前周期」那根 K 线收盘后才重新判断</strong>
+              <p>例如选的是 1 小时周期，就等这一小时走完、K 线正式收盘，才会用最新已收盘的数据重算方向和把握；盘中正在走的那根（未收盘）不会拿来改信号。</p>
+            </li>
+            <li>
+              <strong>为什么这样设计</strong>
+              <p>训练和回测用的都是「已经收盘」的完整 K 线。若盘中用还在变动的价格去算，同一根线里信号会来回跳，也和回测看到的历史不一致，容易误判、频繁改仓。</p>
+              <p>等收盘再用完整 OHLC，信号更稳，也和策略当初学到的数据口径一致。</p>
+            </li>
+            <li>
+              <strong>相同品种、不同周期，能不能套同一个策略？</strong>
+              <p>不建议。策略是按<strong>训练时的那个周期</strong>学出来的；公式里的「10 根、20 根」指的是该周期的 K 线根数，不是固定的钟表时间。</p>
+              <p>例如在 1 小时上训练时，「10 根」大约看过去 10 小时；若硬套到日线，「10 根」就变成过去 10 天——价格形态、噪声幅度、趋势节奏全变了，信号含义对不上，回测成绩也推不到新周期上。</p>
+              <p>同品种换周期应重新训练（或至少用该周期单独回测验证）；实时监控时，周期尽量与策略文件里记录的周期一致。</p>
+            </li>
+            <li>
+              <strong>卡片上的「距离下次判断」在倒计什么</strong>
+              <p>倒计时指向下一次收盘、重新判断信号的时刻。到点后会短暂显示「即将重新判断…」，收到新 bar 后再刷新，并开始下一轮倒计时。</p>
+            </li>
+          </ol>
+        </details>
+      </section>
+
+      <section class="panel rt-feishu-panel">
+        <span class="hud-corner tl"></span><span class="hud-corner tr"></span>
+        <span class="hud-corner bl"></span><span class="hud-corner br"></span>
+        <h2>飞书告警提醒</h2>
+        <p class="rt-feishu-desc">
+          方向转折（看涨 → 不确定 / 看跌）或价格相对「持仓方案入场参考」偏离超过阈值时推送文字提醒。
+          在飞书群添加自定义机器人后，把 Webhook 地址填到下面。
+        </p>
+        <div class="rt-feishu-form">
+          <label class="rt-feishu-enable">
+            <input type="checkbox" id="rtFeishuEnabled" />
+            <span>启用飞书提醒</span>
+          </label>
+          <label class="rt-field rt-field-wide">
+            <span>Webhook URL</span>
+            <input type="text" id="rtFeishuWebhook" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/…" autocomplete="off" />
+          </label>
+          <label class="rt-field rt-field-wide">
+            <span>签名密钥（可选）</span>
+            <input type="password" id="rtFeishuSecret" placeholder="机器人开启签名校验时填写，否则留空" autocomplete="off" />
+          </label>
+          <label class="rt-field rt-field-wide">
+            <span>偏离入场告警阈值（%）</span>
+            <input type="number" id="rtAlertDevPct" min="0" max="50" step="0.1" placeholder="0.5" title="价格相对当前方向建立时锚定的入场参考价偏离超过该百分比时推送飞书；0=关闭。方向转折提醒不受此阈值影响（沿用上方开关）。每次越线只推一条，价格回到阈值一半以内才允许再次提醒" />
+          </label>
+          <label class="rt-field rt-field-wide">
+            <span>因子僵化告警阈值（根）</span>
+            <input type="number" id="rtStaleBarsInput" min="0" max="200" step="1" placeholder="10" title="因子连续 ≥N 根新收盘 bar 几乎不变（相邻变化 &lt; 0.001%）且已判定为硬钝化（最近轨迹点平台恒定，非缓漂）时推送飞书提醒（带最近轨迹摘要）；0=关闭。同一次钝化只推一条，因子恢复变化或方向翻转后才允许再次提醒。僵化角标本身仍按 5 根亮起，与此阈值独立" />
+          </label>
+          <div class="rt-actions rt-feishu-actions">
+            <button type="button" class="btn btn-secondary" id="rtFeishuTestBtn">发送测试</button>
+            <button type="button" class="btn btn-primary" id="rtFeishuSaveBtn">保存</button>
+            <button type="button" class="btn btn-feishu-help" id="rtFeishuHelpBtn">怎么使用飞书功能</button>
+          </div>
+        </div>
+        <small class="field-hint" id="rtFeishuHint">保存后：方向转折、价格偏离入场参考超阈值时都会推送到飞书群。偏离阈值设为 0 可只保留方向转折提醒。</small>
+      </section>
+
+      <section class="panel dd-events-panel">
+        <span class="hud-corner tl"></span><span class="hud-corner tr"></span>
+        <span class="hud-corner bl"></span><span class="hud-corner br"></span>
+        <div class="panel-head">
+          <h2>DD 事件回溯</h2>
+          <span class="hint" id="ddEvHintRt">最近 20 条熔断/深档/收复 · 来自 logs/dd_gate_events.jsonl</span>
+          <button type="button" class="btn btn-mini btn-secondary" data-dd-ev-export="Rt">导出 CSV</button>
+        </div>
+        <div class="dd-ev-filters" id="ddEvFiltersRt">
+          <select class="dd-ev-fil dd-ev-fil-sym" id="ddEvSymRt" title="按品种过滤（范围来自最近 200 条事件）"><option value="">全部品种</option></select>
+          <select class="dd-ev-fil dd-ev-fil-scope" id="ddEvScopeRt" title="按来源范围过滤"><option value="">全部范围</option><option value="paper">模拟盘</option><option value="realtime">实时分析</option></select>
+          <span class="dd-ev-counts" id="ddEvCountsRt"></span>
+        </div>
+        <div class="dd-ev-list" id="ddEvListRt">
+          <div class="metric-empty">暂无 DD 事件记录 — 实时卡的 DD 方案触发熔断或收复后，这里会出现时间线。</div>
+        </div>
+      </section>
+    </div><!-- /page-realtime -->
+
+    <!-- ══════════════ 步骤四：模拟实盘（纸上交易）页 ══════════════ -->
+    <div class="page" id="page-paper">
+      <section class="panel launch-panel">
+        <span class="hud-corner tl"></span><span class="hud-corner tr"></span>
+        <span class="hud-corner bl"></span><span class="hud-corner br"></span>
+        <h2>模拟账户与监控</h2>
+        <div class="pp-account-row">
+          <label class="bt-cost-field">
+            <span>起始资金（重置时生效）</span>
+            <input type="number" id="ppStartBalanceInput" min="100" step="1000" value="100000" />
+          </label>
+          <label class="bt-cost-field">
+            <span>满仓名义金额</span>
+            <input type="number" id="ppNotionalInput" min="100" step="100" value="10000" title="方向信号强度 = |tanh(因子)|，实际下单名义金额 = min(满仓名义金额, 账户权益 × 每笔上限%) × 强度。把满仓名义设成 ≥ 账户资金时，它就只是 100% 的参照份" />
+          </label>
+          <label class="bt-cost-field">
+            <span>每笔投入上限（%）</span>
+            <input type="number" id="ppMaxPosInput" min="1" max="200" step="1" value="100" title="每笔投入上限（占当时账户权益 %，与回测页共用同一设置）：\n单笔名义 = min(满仓名义金额, 账户权益 × 上限%) × 强度 |tanh(因子)|。\n例：账户 10 万 + 满仓名义 10 万 + 上限 5% → 单笔 0~5000。\n100% = 只受满仓名义金额约束（默认与之前行为一致）" />
+          </label>
+          <label class="bt-cost-field">
+            <span>手续费（单边 %）</span>
+            <input type="number" id="ppCommissionInput" min="0" max="5" step="0.01" value="0.02" />
+          </label>
+          <label class="bt-cost-field">
+            <span>滑点（单边 %）</span>
+            <input type="number" id="ppSlippageInput" min="0" max="5" step="0.01" value="0.01" />
+          </label>
+          <div class="pp-account-actions">
+            <button type="button" class="btn btn-secondary" id="ppSaveCfgBtn">保存设置</button>
+            <button type="button" class="btn btn-danger" id="ppResetBtn" title="清空持仓/成交/资金曲线，资金回到起始值（保留监控项）">重置账户</button>
+          </div>
+          <div class="hint-wrap"><small class="field-hint" id="ppCfgHint">模拟货币计价；各品种盈亏按名义金额等比折算。修改手续费/滑点/投入上限对新成交生效（上限按开仓当时账户权益×上限% 计，受满仓名义金额封顶）。</small><a href="/docs/engines-compare" target="_blank" rel="noopener" class="hint-link">回测/回放/实盘口径对照表</a></div>
+        </div>
+        <div class="rt-form pp-add-form">
+          <label class="rt-field">
+            <span>数据源</span>
+            <select id="ppSourceSelect"></select>
+          </label>
+          <label class="rt-field">
+            <span>品种</span>
+            <input type="text" id="ppSymbolInput" list="ppSymbolPresets" placeholder="如 XAUUSD / BTCUSDT / 600519" autocomplete="off" />
+            <select id="ppSymbolSelect" hidden></select>
+            <datalist id="ppSymbolPresets"></datalist>
+          </label>
+          <label class="rt-field">
+            <span>周期</span>
+            <select id="ppTimeframeSelect"></select>
+          </label>
+          <label class="rt-field rt-field-wide">
+            <span>因子来源</span>
+            <select id="ppStrategySelect"></select>
+          </label>
+          <label class="rt-field">
+            <span>持仓管理</span>
+            <select id="ppPolicySelect" title="出场策略：参数内置在各方案里（不手填）\n信号跟随=只在信号翻转/转弱时平仓（与回测同口径）\n止盈止损保护=加固定止盈 +4%/止损 -2%/移动止损\n熔断止损=信号为主，亏损 ≥-2% 强制平仓"></select>
+          </label>
+          <label class="rt-field">
+            <span>正交叠加</span>
+            <select id="ppStackSelect" title="把主方案再叠加一个模块（求并集出场，同一根 bar 先触及者成交）：\n不叠加=只按主方案\n叠加回撤熔断(DD)=账户级门控，可与任意单笔出场正交叠加（熔断/收复有飞书告警）\n示例：主=吊灯止损(ATR) + 叠加=回撤熔断(DD) → dd+chandelier"></select>
+          </label>
+          <small class="field-hint rt-policy-hint" id="ppPolicyHint"></small>
+          <div class="rt-actions">
+            <button type="button" class="btn btn-secondary" id="ppBrowseStrategyBtn" title="导入本地策略 JSON">导入策略</button>
+            <button type="button" class="btn btn-primary" id="ppAddBtn">加入模拟盘</button>
+          </div>
+        </div>
+        <div class="rt-form-foot">
+          <span class="rt-source-hint" id="ppSourceHint">—</span>
+          <span class="rt-thr-hint">无信号阈值
+            <select id="ppThresholdSelect" title="|tanh(因子)| 小于该值时方向 = FLAT（观望区），回测/回放/实时/模拟实盘共用同一设置。">
+              <option value="0.05">0.05（默认）</option>
+              <option value="0.3">0.3</option>
+              <option value="0.5">0.5</option>
+              <option value="0.8">0.8（重度观望）</option>
+            </select>
+          </span>
+          <span class="rt-thr-hint" id="ppThresholdHint">|tanh(因子)| &lt; 0.05 → FLAT</span>
+        </div>
+        <small class="field-hint" id="ppStrategyPicked">因子来源：从已保存策略下拉选择，或「导入策略」选本地 JSON。信号取最后已收盘 bar，方向翻转才成交；持仓管理决定止损/止盈硬出场。</small>
+      </section>
+
+      <!-- 模型库：当前最佳模型 & 可切换的已保存模型列表 -->
+      <section class="panel strategies-panel">
+        <span class="hud-corner tl"></span><span class="hud-corner tr"></span>
+        <span class="hud-corner bl"></span><span class="hud-corner br"></span>
+        <div class="panel-head">
+          <h2>模型库（当前最佳模型与最佳策略）</h2>
+          <span class="hint" id="ppModelHint">点击「选用」→ 作为新监控项的因子来源（加入前可随时切换）</span>
+        </div>
+        <div class="model-grid" id="ppModelGrid"><div class="metric-empty">加载策略列表…</div></div>
+      </section>
+
+      <!-- 历史回放：Parquet × 模型 × 持仓管理（与模拟盘同口径） -->
+      <section class="panel bt-charts-panel">
+        <span class="hud-corner tl"></span><span class="hud-corner tr"></span>
+        <span class="hud-corner bl"></span><span class="hud-corner br"></span>
+        <div class="panel-head">
+          <h2>历史回放（模拟盘口径）</h2>
+          <span class="hint" id="rsHint">未运行</span>
+        </div>
+        <div class="rt-form pp-add-form">
+          <label class="rt-field rt-field-wide">
+            <span>数据文件（Parquet）</span>
+            <div class="rs-data-row">
+              <select id="rsDataSelect" title="从本地数据目录（data/training 与 data/slices）选择回放数据；找不到时用右侧「浏览…」选任意位置">
+                <option value="">— 加载数据清单… —</option>
+              </select>
+              <button type="button" class="btn btn-secondary btn-mini" id="rsBrowseDataBtn">浏览…</button>
+            </div>
+          </label>
+          <label class="rt-field rt-field-wide">
+            <span>模型</span>
+            <select id="rsStrategySelect"></select>
+          </label>
+          <label class="rt-field">
+            <span>持仓管理</span>
+            <select id="rsPolicySelect"></select>
+          </label>
+          <label class="rt-field">
+            <span>窗口（根）</span>
+            <input type="number" id="rsWindowInput" min="800" step="100" placeholder="空=全部" title="只回放最后 N 根（特征 warm-up ≥800）；与回测页的样本外窗口一致" />
+          </label>
+          <label class="rt-field">
+            <span>每笔投入上限（%）</span>
+            <input type="number" id="rsMaxPosInput" min="1" max="200" step="1" value="100" title="每笔投入上限（占当时账户权益 %，与回测/模拟实盘共用同一设置）：\n单笔仓位 = 强度 |tanh(因子)| × 上限%。5% → 仓位落在 0~5%。100% = 与之前行为一致。\nsignal 方案的「同参数回测对比」中，回测侧（连续引擎）同样乘上限，两侧口径对齐。" />
+          </label>
+          <label class="rt-field">
+            <span>无信号阈值</span>
+            <select id="rsThresholdSelect" title="|tanh(因子)| 小于该值时方向 = FLAT（观望区），回测/回放/实时/模拟实盘共用。">
+              <option value="0.05">0.05（默认）</option>
+              <option value="0.3">0.3</option>
+              <option value="0.5">0.5</option>
+              <option value="0.8">0.8（重度观望）</option>
+            </select>
+          </label>
+          <label class="rt-field">
+            <span>手续费（单边 %）</span>
+            <input type="number" id="rsCommInput" min="0" step="0.01" value="0.02" />
+          </label>
+          <label class="rt-field">
+            <span>滑点（单边 %）</span>
+            <input type="number" id="rsSlipInput" min="0" step="0.01" value="0.01" />
+          </label>
+          <div class="rt-actions">
+            <button type="button" class="btn btn-primary" id="rsReplayBtn">开始回放</button>
+            <button type="button" class="btn btn-secondary" id="rsCompareBtn" disabled title="用与回放完全相同的 数据/模型/持仓方案/窗口/成本 再跑一遍「回测口径」并叠加两条资金曲线：\nsignal → 回测走训练连续口径（可看出离散 vs 连续的撮合/成本差异）\n带出场模块（非 signal）→ 回测与回放同走离散引擎，两条曲线应重合（引擎一致性校验）">同参数回测对比</button>
+          </div>
+        </div>
+        <div class="metric-grid" id="rsStatsGrid">
+          <div class="metric-empty">运行回放后显示绩效</div>
+        </div>
+        <div class="rs-oos-warn" id="rsOosWarn" hidden></div>
+        <div class="rs-yearly" id="rsYearlyBlock" hidden>
+          <div class="equity-axis-label">逐年度绩效拆解（账户净值按年分桶 · 标出贡献/损失最多年）</div>
+          <div class="table-wrap"><table class="bt-table" id="rsYearlyTable"></table></div>
+        </div>
+        <div class="equity-live" id="rsEquityLive" hidden>
+          <div class="equity-chart-block">
+            <div class="equity-axis-label" id="rsEquityAxisLabel">账户净值（1.0 起步，离散撮合同模拟盘口径）</div>
+            <div class="equity-chart-wrap">
+              <canvas id="rsEquityChart"></canvas>
+            </div>
+          </div>
+          <div class="rs-compare-summary" id="rsCompareSummary" hidden></div>
+        </div>
+        <div class="hint-wrap"><small class="field-hint">与回测页「持仓管理 ≠ 信号跟随」共用同一离散引擎，结果可直接对照；只消费给定 Parquet，不联网。大文件回放需数十秒。点「同参数回测对比」可在同一张图叠加回测口径曲线。</small><a href="/docs/engines-compare" target="_blank" rel="noopener" class="hint-link">回测/回放/实盘口径对照表</a></div>
+      </section>
+
+      <section class="panel bt-summary-panel">
+        <span class="hud-corner tl"></span><span class="hud-corner tr"></span>
+        <span class="hud-corner bl"></span><span class="hud-corner br"></span>
+        <div class="panel-head">
+          <h2>账户总览</h2>
+          <span class="hint" id="ppStatusHint">—</span>
+          <button type="button" class="btn btn-secondary btn-mini" id="ppDrillBtn" title="隔离账户注入合成暴跌→收复行情，当场走真实 DD 熔断/收复路径（_process_watch → _dd_gate_step → 飞书告警），不影响正式模拟盘；飞书已启用时群里会收到「熔断」「收复」两条告警">DD 演练（合成暴跌）</button>
+        </div>
+        <div class="metric-grid" id="ppAccountGrid">
+          <div class="metric-empty">尚未加入监控项。添加后引擎自动按收盘信号撮合。</div>
+        </div>
+      </section>
+
+      <section class="panel" id="ppDrillPanel" hidden>
+        <span class="hud-corner tl"></span><span class="hud-corner tr"></span>
+        <span class="hud-corner bl"></span><span class="hud-corner br"></span>
+        <div class="panel-head">
+          <h2>DD 演练转录</h2>
+          <span class="hint" id="ppDrillHint">隔离临时账户 · dd+chandelier · 不影响正式模拟盘</span>
+        </div>
+        <div id="ppDrillBody" class="dd-drill-body">
+          <div class="metric-empty">点击「DD 演练（合成暴跌）」注入合成行情（105 → 100.5 → 104.6），当场走一遍熔断/收复并推送飞书两条告警。</div>
+        </div>
+      </section>
+
+      <section class="panel dd-events-panel">
+        <span class="hud-corner tl"></span><span class="hud-corner tr"></span>
+        <span class="hud-corner bl"></span><span class="hud-corner br"></span>
+        <div class="panel-head">
+          <h2>DD 事件回溯</h2>
+          <span class="hint" id="ddEvHintPp">最近 20 条熔断/深档/收复 · 来自 logs/dd_gate_events.jsonl</span>
+          <button type="button" class="btn btn-mini btn-secondary" data-dd-ev-export="Pp">导出 CSV</button>
+        </div>
+        <div class="dd-ev-filters" id="ddEvFiltersPp">
+          <select class="dd-ev-fil dd-ev-fil-sym" id="ddEvSymPp" title="按品种过滤（范围来自最近 200 条事件）"><option value="">全部品种</option></select>
+          <select class="dd-ev-fil dd-ev-fil-scope" id="ddEvScopePp" title="按来源范围过滤"><option value="">全部范围</option><option value="paper">模拟盘</option><option value="realtime">实时分析</option></select>
+          <span class="dd-ev-counts" id="ddEvCountsPp"></span>
+        </div>
+        <div class="dd-ev-list" id="ddEvListPp">
+          <div class="metric-empty">暂无 DD 事件记录 — 模拟盘的 DD 方案触发熔断或收复后，这里会出现时间线。</div>
+        </div>
+      </section>
+
+      <section class="panel bt-table-panel">
+        <span class="hud-corner tl"></span><span class="hud-corner tr"></span>
+        <span class="hud-corner bl"></span><span class="hud-corner br"></span>
+        <div class="panel-head">
+          <h2>监控项与持仓</h2>
+          <span class="hint" id="ppWatchesHint">—</span>
+        </div>
+        <div class="table-wrap">
+          <table class="bt-table pp-watches-table">
+            <thead>
+              <tr>
+                <th>品种</th><th>周期</th><th>数据源</th><th>因子</th><th>信号</th><th>强度</th><th>状态</th><th>名义金额</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="ppWatchesBody">
+              <tr class="empty-row"><td colspan="9">暂无监控项</td></tr>
+            </tbody>
+          </table>
+          <table class="bt-table pp-positions-table">
+            <thead>
+              <tr>
+                <th>品种</th><th>周期</th><th>方向</th><th>持仓方案</th><th>名义金额</th><th>数量</th><th>开仓价</th><th>现价</th><th>止损</th><th>止盈</th><th>未实现盈亏</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="ppPositionsBody">
+              <tr class="empty-row"><td colspan="12">暂无持仓（空仓）</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="launch-actions pp-actions">
+          <button type="button" class="btn btn-secondary" id="ppCloseAllBtn" disabled title="按各监控项最近一次收盘价全部平仓">全部平仓</button>
+          <small class="field-hint">只在信号方向翻转时成交：加仓项每根收盘 bar 都会重新判断；持仓与信号同向则保持不动。</small>
+        </div>
+      </section>
+
+      <section class="panel bt-charts-panel">
+        <span class="hud-corner tl"></span><span class="hud-corner tr"></span>
+        <span class="hud-corner bl"></span><span class="hud-corner br"></span>
+        <div class="panel-head">
+          <h2>账户资金曲线</h2>
+          <span class="hint" id="ppChartHint">—</span>
+        </div>
+        <div class="equity-live" id="ppEquityLive" hidden>
+          <div class="equity-chart-block">
+            <div class="equity-axis-label">账户净值（模拟货币）</div>
+            <div class="equity-chart-wrap">
+              <canvas id="ppEquityChart"></canvas>
+            </div>
+          </div>
+        </div>
+        <div class="metric-empty" id="ppEquityEmpty">尚无资金曲线（发生成交或持续运行时记录）</div>
+      </section>
+
+      <section class="panel bt-table-panel">
+        <span class="hud-corner tl"></span><span class="hud-corner tr"></span>
+        <span class="hud-corner bl"></span><span class="hud-corner br"></span>
+        <div class="panel-head">
+          <h2>成交记录</h2>
+          <span class="hint" id="ppTradesHint">—</span>
+        </div>
+        <div class="table-wrap">
+          <table class="bt-table">
+            <thead>
+              <tr>
+                <th>时间</th><th>动作</th><th>品种</th><th>周期</th><th>成交价</th><th>数量</th><th>名义金额</th><th>手续费</th><th>盈亏</th><th>账户余额</th><th>原因</th>
+              </tr>
+            </thead>
+            <tbody id="ppTradesBody">
+              <tr class="empty-row"><td colspan="11">暂无成交记录</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel howto-panel">
+        <span class="hud-corner tl"></span><span class="hud-corner tr"></span>
+        <span class="hud-corner bl"></span><span class="hud-corner br"></span>
+        <details class="chart-metrics-help bt-howto" open>
+          <summary>模拟盘是怎么运作的？（看这一篇就懂）</summary>
+          <ol class="bt-howto-list">
+            <li><strong>它和「实时分析」什么关系？</strong>
+              <p>信号来源、阈值、只取已收盘 bar——全部一致。区别是这里把信号变成<strong>模拟订单</strong>：方向翻多就开多、翻空就开空、转观望就平仓，每一笔都记进成交流水。不连任何券商、不会真下单。</p>
+            </li>
+            <li><strong>什么时候、按什么价格成交？</strong>
+              <p>只在信号方向翻转的那根<strong>已收盘 bar</strong> 处理：以该 bar 收盘价成交（买按收盘价+滑点、卖按收盘价-滑点），开/平仓各收一次手续费。与回测的「收盘后按 open[t+1] 成交」同一口径，避免用未收盘价格抖动。</p>
+            </li>
+            <li><strong>一单下多大？</strong>
+              <p>下单名义金额 = 你设置的「满仓名义金额」× 当前信号强度 |tanh(因子)|。信号越强仓位越大；信号弱到阈值以下（先观望）就不持有。同方向不反复加仓，跟实盘 runner 的对账逻辑一致。</p>
+            </li>
+            <li><strong>数字怎么算？</strong>
+              <p>多单盈亏 = (现价−开仓价)×数量；空单盈亏 = (开仓价−现价)×数量。账户净值 = 现金 + 持仓未实现盈亏；总盈亏相对「起始资金」计算。持仓中的浮盈会随每个收盘 bar 刷新。</p>
+            </li>
+            <li><strong>有哪些提醒？</strong>
+              <ul>
+                <li>模拟盘假设<strong>双向都可交易（可做空）</strong>；A 股等实际不能做空的品种仅供参考。</li>
+                <li>页面关了引擎也继续在后台跑；服务重启后从本地文件恢复账户与监控项。</li>
+                <li>「重置账户」清空持仓、成交与资金曲线，但保留监控项，改完起始资金后点它生效。</li>
+                <li>这不是理财建议，也不代表真实成交价，只是把策略「未来怎么表现」跑给你看。</li>
+              </ul>
+            </li>
+          </ol>
+        </details>
+      </section>
+    </div><!-- /page-paper -->
+
+    <div class="modal" id="rtFeishuHelpModal" hidden>
+      <div class="modal-backdrop" data-close-feishu-help></div>
+      <div class="modal-card modal-card-feishu-help" role="dialog" aria-labelledby="rtFeishuHelpTitle">
+        <h3 id="rtFeishuHelpTitle">怎么使用飞书功能</h3>
+        <div class="modal-body modal-body-feishu-help">
+          去问龙虾AlphaMaster这个项目怎么使用飞书功能，一步一步教我<br>
+          还是搞不定的话<br>
+          可以联系阿尔法本人QQ：564020069<br><br>
+          赞助49.9元可以帮你远程协助完成飞书设置<br><br>
+          如果之前已经支付过49.9元了，这次只需要赞助30元即可
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-primary" data-close-feishu-help>知道了</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="tvBlockedModal" hidden>
+      <div class="modal-backdrop" data-close-tv-blocked></div>
+      <div class="modal-card" role="dialog" aria-labelledby="tvBlockedTitle">
+        <h3 id="tvBlockedTitle">无法使用 TradingView</h3>
+        <pre class="modal-body modal-tv-blocked-body" id="tvBlockedBody"></pre>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="tvBlockedLaterBtn">暂不处理</button>
+          <button type="button" class="btn btn-primary" id="tvBlockedCloudBtn">使用云服务器</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="vrfModal" hidden>
+      <div class="modal-backdrop" data-close-vrf></div>
+      <div class="modal-card modal-card-vrf" role="dialog" aria-labelledby="vrfTitle">
+        <h3 id="vrfTitle">回滚校验报告</h3>
+        <div class="modal-actions vrf-actions">
+          <button type="button" class="btn btn-secondary btn-mini" id="vrfRetrainBtn" title="额外对每个记录做短程重训（--retrain-steps 10），验证同种子/步数能否复现存档 best 分数；重训较慢">带短程重训重跑</button>
+          <span class="hint" id="vrfHint">验证子集确定性 + 存档公式 holdout 复验</span>
+        </div>
+        <pre class="modal-body modal-vrf-body" id="vrfBody">运行中…</pre>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="vrfCloseBtn">关闭</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="errorModal" hidden>
+      <div class="modal-backdrop" data-close-error></div>
+      <div class="modal-card modal-card-error" role="dialog" aria-labelledby="errorModalTitle">
+        <h3 id="errorModalTitle">出错了</h3>
+        <pre class="modal-error-detail" id="errorModalDetail"></pre>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="errorModalCopyBtn">复制详情</button>
+          <button type="button" class="btn btn-primary" data-close-error>知道了</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/api-base.js?v=3"></script>
+  <script src="/static/bg.js?v=3"></script>
+  <script src="/static/stream.js?v=4"></script>
+  <script src="/static/app.js?v=153"></script>
+</body>
+</html>
