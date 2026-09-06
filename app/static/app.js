@@ -5515,14 +5515,12 @@ async function btPrefsApply(symbol) {
       }
       updateBtComboHint();
     }
-    if (Number.isFinite(wb) && wb >= 800) {
-      const wEl = $("btWindowInput");
-      if (wEl) wEl.value = String(Math.round(wb));
-    }
+    // 样本外窗口只由输入框驱动（scheduleBtPrefsSave 随用户改动记忆），不再随
+    // 品种/模型切换自动回填输入框、也不把记忆窗口同步到其它页：用户清空
+    // （=全部历史）后任何切换/回测都不得把它改回去。持仓组合/上限/阈值仍恢复。
     window.__btMemPolicy = hp && hp !== "signal" ? hp : "signal";
-    window.__btMemWindow = Number.isFinite(wb) && wb >= 800 ? Math.round(wb) : null;
     renderBtLastCombo();
-    applyBtPrefsToOthers(window.__btMemPolicy, window.__btMemWindow, window.__btMemMaxPos);
+    applyBtPrefsToOthers(window.__btMemPolicy, null, window.__btMemMaxPos);
   } catch (_) {
   } finally {
     __btApplyingPrefs = false;
