@@ -20,6 +20,7 @@ let btBuster = "";      // 图表缓存刷新键（用 job 时间戳）
 let btPortfolioSig = ""; // 绩效卡签名：变化时才重建 + 播放数字动画，避免每次轮询重播
 let lastEquityData = null; // 最近一次资金曲线数据，供绩效卡 sparkline 复用
 let btReportRunId = null; // 最近一次回测报告 run_id，用于与资金曲线对齐口径
+let btReportEngineInfo = null; // 最近一次回测的引擎口径（连续/离散），供两张卡渲染 Engine Badge
 let lastTrainingActive = false;
 let trainActive = false;   // 概览轮询后同步的后端训练活动标志（供自适应轮询用）
 let pollIntervalMs = 4000; // 当前轮询间隔：忙 4s / 空闲 12s
@@ -2973,11 +2974,17 @@ async function refreshBacktestReport() {
     if ($("btPortfolioHint")) $("btPortfolioHint").textContent = "尚未运行回测";
     lastEquityData = null;
     btPortfolioSig = "";
+    btReportEngineInfo = null;
+    renderEngineBadge($("btEngineBadge"), null);
+    renderEngineBadge($("btEquityEngineBadge"), null);
     renderEquity(null);
     return;
   }
   // 先取资金曲线（写入 lastEquityData），再渲染绩效卡，让 sparkline 用上真实数据
   btReportRunId = data.report.run_id || null;
+  btReportEngineInfo = engineInfoFromReport(data.report || {});
+  renderEngineBadge($("btEngineBadge"), btReportEngineInfo);
+  renderEngineBadge($("btEquityEngineBadge"), btReportEngineInfo);
   await refreshEquityCurve();
   if (btReportRunId && lastEquityData?.run_id && lastEquityData.run_id !== btReportRunId) {
     // 抓到了不同 run 的文件（写盘间隙/并发回测）：等一拍重取一次，仍不一致由 renderEquity 展示警示
@@ -4550,6 +4557,36 @@ function renderEquity(resp) {
   if ($("btChartsHint")) {
     $("btChartsHint").textContent = `${mainName} · 交互式资金曲线 · 悬停查看数值`;
   }
+}
+
+// Engine Badge：明确标识本次回测的引擎口径 —— 生产判断只用离散撮合，连续引擎仅作研究/信号强度诊断
+function engineInfoFromReport(report) {
+  const hp = report.hold_policy || "signal";
+  const discrete = hp !== "signal"; // 回测页：非 signal 方案走离散撮合引擎，signal 走连续逐bar复利
+  const firstSym = Object.keys(report.cost_rates || {})[0];
+  const cr = firstSym ? report.cost_rates[firstSym] : null;
+  const costPct = cr != null && Number.isFinite(Number(cr)) ? (Number(cr) * 100).toFixed(2) + "%/边" : "—";
+  const sample = report.window_bars ? `样本外尾部 ${report.window_bars} 根` : "全部历史";
+  return {
+    discrete,
+    title: discrete ? "🟢 离散撮合 · Production" : "🟡 连续引擎 · In-Sample",
+    detail: `Engine: ${discrete ? "Discrete Execution" : "Continuous per-bar"}` +
+      ` · Accounting: ${discrete ? "已实现盈亏 (Realized P&L)" : "逐bar对数复利 (Log-compounded)"}` +
+      ` · Sample: ${sample}` +
+      ` · Cost: ${costPct}`,
+  };
+}
+
+function renderEngineBadge(el, info) {
+  if (!el) return;
+  if (!info) {
+    el.hidden = true;
+    return;
+  }
+  el.hidden = false;
+  el.innerHTML =
+    `<div class="bt-engine-chip ${info.discrete ? "prod" : "research"}">${info.title}</div>` +
+    `<div class="bt-engine-detail">${info.detail}</div>`;
 }
 
 // 资金曲线与绩效卡必须来自同一次回测（同一 run_id）；不一致时提示（旧文件或写盘间隙）

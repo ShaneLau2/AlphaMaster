@@ -1919,6 +1919,48 @@ body.anim-locked .split {
   color: #fcd34d;
 }
 
+/* ── Engine Badge：连续引擎(research) vs 离散撮合(production) 口径标识 ── */
+.bt-engine-badge {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 4px 0 2px;
+}
+
+.bt-engine-chip {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 4px 14px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.bt-engine-chip.prod {
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.1);
+  border: 1px solid rgba(74, 222, 128, 0.35);
+  text-shadow: 0 0 12px rgba(74, 222, 128, 0.35);
+}
+
+.bt-engine-chip.research {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  text-shadow: 0 0 12px rgba(251, 191, 36, 0.35);
+}
+
+.bt-engine-detail {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--muted, #94a3b8);
+  letter-spacing: 0.01em;
+}
+
 .equity-stats {
   display: grid;
   grid-template-columns: auto repeat(5, minmax(0, 1fr));
